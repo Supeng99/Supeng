@@ -1,0 +1,99 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /ai-assistant
+
+spring:
+  application:
+    name: ai-assistant
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/ai_assistant?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
+
+  redis:
+    host: localhost
+    port: 6379
+    password: ""
+    database: 0
+    timeout: 10000
+    jedis:
+      pool:
+        max-active: 8
+        max-wait: -1ms
+        max-idle: 8
+        min-idle: 0
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.ai.assistant.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# AI 配置
+ai:
+  default-model: deepseek
+  deepseek:
+    api-key: ${DEEPSEEK_API_KEY:your-deepseek-api-key}
+    base-url: https://api.deepseek.com
+    model: deepseek-chat
+  qwen:
+    api-key: ${QWEN_API_KEY:your-qwen-api-key}
+    base-url: https://dashscope.aliyuncs.com/api/v1
+    model: qwen-turbo
+
+# 限流配置
+rate-limit:
+  user:
+    max-requests: 30
+    window-seconds: 60
+  ip:
+    max-requests: 60
+    window-seconds: 60
+  global:
+    max-requests: 500
+    window-seconds: 60
+
+# 缓存配置
+cache:
+  qa-ttl-seconds: 3600
+  context-ttl-minutes: 30
+  caffeine:
+    initial-capacity: 100
+    maximum-size: 1000
+    expire-after-write-seconds: 300
+    expire-after-access-seconds: 600
+  redis:
+    expire-seconds: 3600
+    key-prefix: "cache:"
+
+# Swagger配置
+springfox:
+  documentation:
+    enabled: true
+
+# 文件存储
+upload:
+  path: ./uploads
+  allowed-types:
+    - pdf
+    - docx
+    - doc
+    - txt
+
+logging:
+  level:
+    com.ai.assistant: DEBUG
+    org.springframework: INFO

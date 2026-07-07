@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ai.assistant.mapper.ChatMessageMapper">
+
+    <select id="selectBySessionId" resultType="com.ai.assistant.entity.ChatMessage">
+        SELECT id, session_id, role, content, model_type, token_count, citations, created_at
+        FROM chat_message
+        WHERE session_id = #{sessionId}
+        ORDER BY created_at ASC
+    </select>
+
+    <select id="selectPageBySessionId" resultType="com.ai.assistant.entity.ChatMessage">
+        SELECT id, session_id, role, content, model_type, token_count, citations, created_at
+        FROM chat_message
+        WHERE session_id = #{sessionId}
+        ORDER BY created_at ASC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <select id="countBySessionId" resultType="int">
+        SELECT COUNT(*) FROM chat_message WHERE session_id = #{sessionId}
+    </select>
+
+</mapper>

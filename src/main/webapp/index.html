@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能AI问答助手</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; background: #0f0f1a; color: #fff; height: 100vh; display: flex; }
+        .sidebar { width: 280px; background: #1a1a2e; padding: 20px; border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .sidebar h2 { font-size: 18px; margin-bottom: 20px; color: #00d4ff; }
+        .new-chat-btn { background: linear-gradient(135deg, #667eea, #764ba2); border: none; color: #fff; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; margin-bottom: 20px; transition: all 0.3s; }
+        .new-chat-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+        .session-list { flex: 1; overflow-y: auto; }
+        .session-item { padding: 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; background: #252540; transition: all 0.2s; position: relative; }
+        .session-item:hover { background: #353555; }
+        .session-item:hover .delete-btn { opacity: 1; }
+        .session-item.active { background: #667eea; }
+        .session-item .title { font-size: 14px; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; }
+        .session-item .preview { font-size: 12px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+        .session-item .time { font-size: 11px; color: #666; }
+        .session-item.active .preview { color: rgba(255,255,255,0.7); }
+        .session-item.active .time { color: rgba(255,255,255,0.5); }
+        .delete-btn { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; border: none; background: #ff4444; color: #fff; border-radius: 4px; cursor: pointer; opacity: 0; transition: opacity 0.2s; font-size: 12px; line-height: 1; }
+        .delete-btn:hover { background: #ff6666; }
+        .session-count { font-size: 11px; background: #667eea; color: #fff; padding: 2px 6px; border-radius: 10px; margin-left: 8px; flex-shrink: 0; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .header { padding: 20px; background: #1a1a2e; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; }
+        .header h1 { font-size: 20px; color: #00d4ff; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .doc-toggle-btn { padding: 8px 16px; background: transparent; border: 1px solid #444; color: #888; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+        .doc-toggle-btn:hover { border-color: #00d4ff; color: #00d4ff; }
+        .doc-toggle-btn.active { background: #00d4ff; color: #000; border-color: #00d4ff; }
+        .model-select { display: flex; gap: 10px; }
+        .model-btn { padding: 8px 16px; border: 1px solid #444; background: transparent; color: #888; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .model-btn.active { background: #667eea; color: #fff; border-color: #667eea; }
+        .chat-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+        .message { max-width: 800px; padding: 16px 20px; border-radius: 12px; line-height: 1.6; }
+        .user-message { background: #667eea; margin-left: auto; border-bottom-right-radius: 4px; }
+        .ai-message { background: #252540; margin-right: auto; border-bottom-left-radius: 4px; }
+        .message-content { white-space: pre-wrap; word-break: break-word; }
+        .typing-cursor { display: inline-block; width: 8px; height: 16px; background: #00d4ff; margin-left: 2px; animation: blink 0.7s infinite; vertical-align: middle; }
+        @keyframes blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+        .input-area { padding: 20px; background: #1a1a2e; border-top: 1px solid #333; }
+        .input-wrapper { display: flex; gap: 12px; align-items: flex-end; }
+        .message-input { flex: 1; padding: 14px 18px; border: 1px solid #444; background: #252540; color: #fff; border-radius: 12px; font-size: 15px; resize: none; min-height: 50px; max-height: 150px; font-family: inherit; }
+        .message-input:focus { outline: none; border-color: #667eea; }
+        .send-btn { padding: 14px 28px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; color: #fff; border-radius: 12px; cursor: pointer; font-size: 15px; transition: all 0.3s; }
+        .send-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .upload-btn { padding: 14px; background: #252540; border: 1px solid #444; color: #888; border-radius: 12px; cursor: pointer; transition: all 0.2s; }
+        .upload-btn:hover { border-color: #667eea; color: #667eea; }
+        .kb-badge { font-size: 10px; background: #00d4ff; color: #000; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+        .loading { display: flex; align-items: center; gap: 8px; color: #888; }
+        .loading-dots { display: flex; gap: 4px; }
+        .loading-dots span { width: 8px; height: 8px; background: #667eea; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1); } }
+        .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #666; }
+        .empty-state h3 { font-size: 24px; margin-bottom: 12px; color: #888; }
+        .empty-state p { font-size: 14px; }
+        .clear-btn { padding: 8px 16px; background: transparent; border: 1px solid #444; color: #888; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .clear-btn:hover { border-color: #ff4444; color: #ff4444; }
+        .search-box { margin-bottom: 15px; }
+        .search-input { width: 100%; padding: 10px 12px; border: 1px solid #444; background: #252540; color: #fff; border-radius: 8px; font-size: 13px; }
+        .search-input::placeholder { color: #666; }
+        .search-input:focus { outline: none; border-color: #667eea; }
+        
+        /* 文档管理面板样式 */
+        .doc-panel { width: 350px; background: #1a1a2e; border-left: 1px solid #333; display: flex; flex-direction: column; position: fixed; right: 0; top: 0; bottom: 0; transform: translateX(100%); transition: transform 0.3s ease; z-index: 100; }
+        .doc-panel.open { transform: translateX(0); }
+        .doc-panel-header { padding: 20px; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; }
+        .doc-panel-header h3 { font-size: 16px; color: #00d4ff; }
+        .close-panel-btn { width: 28px; height: 28px; border: none; background: #333; color: #888; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .close-panel-btn:hover { background: #444; color: #fff; }
+        
+        /* 拖拽上传区域 */
+        .drop-zone { margin: 20px; padding: 30px; border: 2px dashed #444; border-radius: 12px; text-align: center; transition: all 0.3s; cursor: pointer; }
+        .drop-zone:hover, .drop-zone.dragover { border-color: #667eea; background: rgba(102, 126, 234, 0.1); }
+        .drop-zone-icon { width: 48px; height: 48px; margin: 0 auto 12px; color: #666; }
+        .drop-zone-text { font-size: 14px; color: #888; margin-bottom: 8px; }
+        .drop-zone-hint { font-size: 12px; color: #555; }
+        .drop-zone input { display: none; }
+        
+        /* 知识库搜索 */
+        .kb-search { margin: 0 20px 15px; }
+        .kb-search-input { width: 100%; padding: 10px 12px; border: 1px solid #444; background: #252540; color: #fff; border-radius: 8px; font-size: 13px; }
+        .kb-search-input:focus { outline: none; border-color: #00d4ff; }
+        .kb-search-btn { width: 100%; padding: 10px; margin-top: 8px; background: #00d4ff; color: #000; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .kb-search-btn:hover { background: #00a8cc; }
+        .kb-search-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        /* 文档列表 */
+        .doc-list-header { padding: 10px 20px; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .doc-list { flex: 1; overflow-y: auto; padding: 0 20px 20px; }
+        .doc-item { background: #252540; border-radius: 8px; padding: 12px; margin-bottom: 10px; transition: all 0.2s; }
+        .doc-item:hover { background: #353555; }
+        .doc-item-header { display: flex; align-items: flex-start; gap: 10px; }
+        .doc-icon { width: 32px; height: 32px; background: #667eea; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; flex-shrink: 0; }
+        .doc-icon.pdf { background: #e74c3c; }
+        .doc-icon.docx { background: #3498db; }
+        .doc-icon.doc { background: #3498db; }
+        .doc-icon.txt { background: #95a5a6; }
+        .doc-info { flex: 1; min-width: 0; }
+        .doc-name { font-size: 13px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
+        .doc-meta { font-size: 11px; color: #666; display: flex; gap: 10px; }
+        .doc-status { display: inline-flex; align-items: center; gap: 4px; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+        .status-dot.pending { background: #f39c12; }
+        .status-dot.processing { background: #3498db; animation: pulse 1.5s infinite; }
+        .status-dot.success { background: #27ae60; }
+        .status-dot.error { background: #e74c3c; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .doc-actions { display: flex; gap: 4px; margin-top: 8px; }
+        .doc-action-btn { padding: 4px 8px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        .doc-action-btn.view { background: #667eea; color: #fff; }
+        .doc-action-btn.retry { background: #f39c12; color: #fff; }
+        .doc-action-btn.delete { background: transparent; color: #e74c3c; border: 1px solid #e74c3c; }
+        .doc-action-btn:hover { opacity: 0.8; }
+        
+        /* 知识库搜索结果 */
+        .kb-results { padding: 0 20px 20px; display: none; }
+        .kb-results.show { display: block; }
+        .kb-result-item { background: #252540; border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: 3px solid #00d4ff; }
+        .kb-result-source { font-size: 11px; color: #00d4ff; margin-bottom: 6px; }
+        .kb-result-content { font-size: 13px; color: #ccc; line-height: 1.5; }
+        .kb-use-btn { width: 100%; padding: 8px; margin-top: 8px; background: #00d4ff; color: #000; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; }
+        .kb-use-btn:hover { background: #00a8cc; }
+        
+        /* 文档预览弹窗 */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 200; opacity: 0; visibility: hidden; transition: all 0.3s; }
+        .modal-overlay.show { opacity: 1; visibility: visible; }
+        .modal-content { background: #1a1a2e; border-radius: 12px; width: 90%; max-width: 700px; max-height: 80vh; display: flex; flex-direction: column; }
+        .modal-header { padding: 16px 20px; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; }
+        .modal-header h4 { font-size: 15px; color: #fff; }
+        .modal-close { width: 28px; height: 28px; border: none; background: #333; color: #888; border-radius: 6px; cursor: pointer; font-size: 16px; }
+        .modal-close:hover { background: #444; color: #fff; }
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+        .chunk-list { max-height: 400px; overflow-y: auto; }
+        .chunk-item { background: #252540; border-radius: 8px; padding: 12px; margin-bottom: 10px; font-size: 13px; color: #ccc; line-height: 1.6; position: relative; }
+        .chunk-item::before { content: attr(data-index); position: absolute; top: 8px; right: 10px; font-size: 10px; color: #666; }
+        
+        /* 上传进度 */
+        .upload-progress { margin: 10px 20px; display: none; }
+        .upload-progress.show { display: block; }
+        .progress-bar { height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); width: 0%; transition: width 0.3s; }
+        .progress-text { font-size: 11px; color: #666; margin-top: 6px; text-align: center; }
+        
+        /* Toast通知 */
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: #252540; padding: 12px 24px; border-radius: 8px; font-size: 14px; color: #fff; z-index: 300; opacity: 0; transition: all 0.3s; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.success { border-left: 4px solid #27ae60; }
+        .toast.error { border-left: 4px solid #e74c3c; }
+        .toast.info { border-left: 4px solid #3498db; }
+        
+        /* 遮罩层 */
+        .doc-panel-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 99; opacity: 0; visibility: hidden; transition: all 0.3s; }
+        .doc-panel-overlay.show { opacity: 1; visibility: visible; }
+        
+        /* 智能处理选项按钮 */
+        .process-option-btn { display: flex; flex-direction: column; align-items: center; padding: 15px 10px; background: #252540; border: 1px solid #333; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .process-option-btn:hover { border-color: #667eea; background: #353555; }
+        .process-option-btn.active { border-color: #667eea; background: rgba(102, 126, 234, 0.2); }
+        .process-option-btn .option-icon { font-size: 24px; margin-bottom: 6px; }
+        .process-option-btn .option-title { font-size: 13px; color: #fff; font-weight: 500; margin-bottom: 4px; }
+        .process-option-btn .option-desc { font-size: 11px; color: #888; }
+        
+        /* 加载动画 */
+        .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; border-top-color: #fff; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <button class="new-chat-btn" onclick="createNewSession()">+ 新建对话</button>
+        <div class="search-box">
+            <input type="text" class="search-input" id="searchInput" placeholder="搜索历史记录..." oninput="filterSessions()">
+        </div>
+        <div class="session-list" id="sessionList"></div>
+    </div>
+    <div class="main-content">
+        <div class="header">
+            <h1>智能AI问答助手</h1>
+            <div class="header-actions">
+                <button class="doc-toggle-btn" id="docToggleBtn" onclick="toggleDocPanel()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                    </svg>
+                    知识库
+                </button>
+                <div class="model-select">
+                    <button class="model-btn active" data-model="deepseek">DeepSeek</button>
+                    <button class="model-btn" data-model="qwen">通义千问</button>
+                </div>
+            </div>
+        </div>
+        <div class="chat-area" id="chatArea">
+            <div class="empty-state">
+                <h3>开始对话吧</h3>
+                <p>输入您的问题，AI助手将为您解答</p>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-wrapper">
+                <label class="upload-btn" title="上传知识库文档">
+                    <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.txt" style="display:none" onchange="handleFileSelect(this)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                    </svg>
+                </label>
+                <textarea class="message-input" id="messageInput" placeholder="输入您的问题..." rows="1" onkeydown="handleKeyDown(event)" oninput="autoResize(this)"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 文档管理面板 -->
+    <div class="doc-panel-overlay" id="docPanelOverlay" onclick="toggleDocPanel()"></div>
+    <div class="doc-panel" id="docPanel">
+        <div class="doc-panel-header">
+            <h3>📚 知识库文档</h3>
+            <button class="close-panel-btn" onclick="toggleDocPanel()">×</button>
+        </div>
+        
+        <!-- 拖拽上传区域 -->
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+            <svg class="drop-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+            <div class="drop-zone-text">点击或拖拽文件上传</div>
+            <div class="drop-zone-hint">支持 PDF、DOCX、DOC、TXT</div>
+            <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.txt" onchange="handleFileSelect(this)">
+        </div>
+        
+        <!-- 上传进度 -->
+        <div class="upload-progress" id="uploadProgress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">上传中...</div>
+        </div>
+        
+        <!-- 知识库搜索 -->
+        <div class="kb-search">
+            <input type="text" class="kb-search-input" id="kbSearchInput" placeholder="搜索知识库内容...">
+            <button class="kb-search-btn" id="kbSearchBtn" onclick="searchKnowledge()">🔍 搜索知识库</button>
+        </div>
+        
+        <!-- 知识库搜索结果 -->
+        <div class="kb-results" id="kbResults"></div>
+        
+        <!-- 文档列表 -->
+        <div class="doc-list-header">文档列表</div>
+        <div class="doc-list" id="docList">
+            <div style="text-align: center; padding: 30px; color: #555; font-size: 13px;">暂无文档，上传文档开始构建知识库</div>
+        </div>
+    </div>
+
+    <!-- 文档预览弹窗 -->
+    <div class="modal-overlay" id="chunkModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 id="modalDocName">文档内容预览</h4>
+                <button class="modal-close" onclick="closeChunkModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="chunk-list" id="chunkList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 智能处理弹窗 -->
+    <div class="modal-overlay" id="processModal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h4 id="processModalTitle">✨ 文档智能处理</h4>
+                <button class="modal-close" onclick="closeProcessModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 处理选项 -->
+                <div id="processOptions" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                    <button class="process-option-btn" data-action="summary" onclick="selectProcessAction('summary')">
+                        <span class="option-icon">📝</span>
+                        <span class="option-title">生成摘要</span>
+                        <span class="option-desc">AI生成核心摘要</span>
+                    </button>
+                    <button class="process-option-btn" data-action="question" onclick="selectProcessAction('question')">
+                        <span class="option-icon">❓</span>
+                        <span class="option-title">智能问答</span>
+                        <span class="option-desc">针对文档提问</span>
+                    </button>
+                    <button class="process-option-btn" data-action="rewrite" onclick="selectProcessAction('rewrite')">
+                        <span class="option-icon">✏️</span>
+                        <span class="option-title">改写润色</span>
+                        <span class="option-desc">专业/口语风格</span>
+                    </button>
+                    <button class="process-option-btn" data-action="translate" onclick="selectProcessAction('translate')">
+                        <span class="option-icon">🌐</span>
+                        <span class="option-title">文档翻译</span>
+                        <span class="option-desc">多语言翻译</span>
+                    </button>
+                    <button class="process-option-btn" data-action="expand" onclick="selectProcessAction('expand')">
+                        <span class="option-icon">📖</span>
+                        <span class="option-title">内容扩写</span>
+                        <span class="option-desc">详细展开主题</span>
+                    </button>
+                    <button class="process-option-btn" data-action="keyinfo" onclick="selectProcessAction('keyinfo')">
+                        <span class="option-icon">🔑</span>
+                        <span class="option-title">关键信息</span>
+                        <span class="option-desc">提取核心要点</span>
+                    </button>
+                    <button class="process-option-btn" data-action="continue" onclick="selectProcessAction('continue')">
+                        <span class="option-icon">➕</span>
+                        <span class="option-title">续写内容</span>
+                        <span class="option-desc">根据文档续写</span>
+                    </button>
+                    <button class="process-option-btn" data-action="compare" onclick="selectProcessAction('compare')">
+                        <span class="option-icon">⚖️</span>
+                        <span class="option-title">文档对比</span>
+                        <span class="option-desc">对比两个文档</span>
+                    </button>
+                </div>
+                
+                <!-- 问答输入 -->
+                <div id="questionInput" style="display: none; margin-bottom: 15px;">
+                    <input type="text" id="questionText" placeholder="请输入您的问题..." style="width: 100%; padding: 12px; border: 1px solid #444; background: #252540; color: #fff; border-radius: 8px; font-size: 14px;">
+                </div>
+                
+                <!-- 风格选择 -->
+                <div id="styleSelect" style="display: none; margin-bottom: 15px;">
+                    <select id="styleOption" style="width: 100%; padding: 12px; border: 1px solid #444; background: #252540; color: #fff; border-radius: 8px; font-size: 14px;">
+                        <option value="default">默认润色</option>
+                        <option value="formal">正式商务风格</option>
+                        <option value="simple">简洁口语风格</option>
+                        <option value="academic">学术论文风格</option>
+                    </select>
+                </div>
+                
+                <!-- 语言选择 -->
+                <div id="langSelect" style="display: none; margin-bottom: 15px;">
+                    <select id="langOption" style="width: 100%; padding: 12px; border: 1px solid #444; background: #252540; color: #fff; border-radius: 8px; font-size: 14px;">
+                        <option value="en">英文</option>
+                        <option value="zh">中文</option>
+                        <option value="ja">日文</option>
+                        <option value="ko">韩文</option>
+                        <option value="fr">法文</option>
+                        <option value="de">德文</option>
+                    </select>
+                </div>
+                
+                <!-- 扩写主题 -->
+                <div id="expandInput" style="display: none; margin-bottom: 15px;">
+                    <input type="text" id="expandText" placeholder="请输入要扩写的主题或方面..." style="width: 100%; padding: 12px; border: 1px solid #444; background: #252540; color: #fff; border-radius: 8px; font-size: 14px;">
+                </div>
+                
+                <!-- 文档对比选择 -->
+                <div id="compareSelect" style="display: none; margin-bottom: 15px;">
+                    <label style="font-size: 12px; color: #888; margin-bottom: 5px; display: block;">选择对比的第二个文档：</label>
+                    <select id="compareDocId" style="width: 100%; padding: 12px; border: 1px solid #444; background: #252540; color: #fff; border-radius: 8px; font-size: 14px;">
+                        ${documents.map(d => `<option value="${d.id}">${escapeHtml(d.fileName)}</option>`).join('')}
+                    </select>
+                </div>
+                
+                <!-- 处理按钮 -->
+                <button id="processBtn" onclick="executeProcess()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #667eea, #764ba2); border: none; color: #fff; border-radius: 8px; font-size: 14px; cursor: pointer; margin-bottom: 15px;">
+                    开始处理
+                </button>
+                
+                <!-- 处理结果 -->
+                <div id="processResult" style="display: none; background: #252540; border-radius: 8px; padding: 15px; max-height: 300px; overflow-y: auto;">
+                    <div style="font-size: 12px; color: #00d4ff; margin-bottom: 10px;">处理结果：</div>
+                    <div id="resultContent" style="font-size: 14px; line-height: 1.6; color: #ccc; white-space: pre-wrap;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast通知 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let currentSessionId = null;
+        let currentModel = 'deepseek';
+        let isStreaming = false;
+        let messages = [];
+        let allSessions = [];
+        let currentUserId = localStorage.getItem('ai_user_id') || generateUserId();
+
+        function generateUserId() {
+            const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('ai_user_id', userId);
+            return userId;
+        }
+
+        document.querySelectorAll('.model-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentModel = this.dataset.model;
+            });
+        });
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function createNewSession() {
+            try {
+                const res = await fetch('/ai-assistant/api/session/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUserId }) });
+                const data = await res.json();
+                if (data.code === 200) {
+                    currentSessionId = data.data.id;
+                    messages = [];
+                    document.getElementById('chatArea').innerHTML = '<div class="empty-state"><h3>开始对话吧</h3><p>输入您的问题，AI助手将为您解答</p></div>';
+                    loadSessions();
+                }
+            } catch (err) { console.error('创建会话失败:', err); }
+        }
+
+        async function loadSessions() {
+            try {
+                const res = await fetch('/ai-assistant/api/session/list?userId=' + encodeURIComponent(currentUserId) + '&page=1&size=100');
+                const data = await res.json();
+                allSessions = []; // 重置
+                const list = document.getElementById('sessionList');
+                list.innerHTML = '';
+                if (data.code === 200 && data.data) {
+                    allSessions = data.data; // 保存用于搜索
+                    
+                    // 按时间倒序排列，最新的在前
+                    allSessions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    
+                    allSessions.forEach(session => {
+                        const item = document.createElement('div');
+                        item.className = 'session-item' + (session.id === currentSessionId ? ' active' : '');
+                        
+                        // 获取会话的第一条用户消息作为预览
+                        const firstQuestion = session.firstQuestion || '新对话';
+                        const msgCount = session.messageCount || 0;
+                        const timeStr = formatTime(session.createdAt);
+                        
+                        item.innerHTML = `
+                            <div class="title">
+                                <span>${escapeHtml(firstQuestion.substring(0, 20))}${firstQuestion.length > 20 ? '...' : ''}</span>
+                                ${msgCount > 0 ? `<span class="session-count">${msgCount}</span>` : ''}
+                            </div>
+                            <div class="preview">${escapeHtml(firstQuestion)}</div>
+                            <div class="time">${timeStr}</div>
+                            <button class="delete-btn" onclick="event.stopPropagation(); deleteSession(${session.id})" title="删除">x</button>
+                        `;
+                        item.onclick = () => loadSession(session.id);
+                        list.appendChild(item);
+                    });
+                }
+            } catch (err) { console.error('加载会话列表失败:', err); }
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            // 小于1分钟
+            if (diff < 60000) return '刚刚';
+            // 小于1小时
+            if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+            // 小于24小时
+            if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+            // 小于7天
+            if (diff < 604800000) return Math.floor(diff / 86400000) + '天前';
+            // 超过7天显示日期
+            return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        }
+
+        async function loadSession(sessionId) {
+            currentSessionId = sessionId;
+            try {
+                const res = await fetch('/ai-assistant/api/session/messages?sessionId=' + sessionId);
+                const data = await res.json();
+                messages = data.code === 200 ? data.data : [];
+                renderMessages();
+                loadSessions(); // 更新active状态
+            } catch (err) { console.error('加载会话失败:', err); }
+        }
+
+        async function deleteSession(sessionId) {
+            if (!confirm('确定要删除这个对话吗？')) return;
+            try {
+                const res = await fetch('/ai-assistant/api/session/' + sessionId, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    if (currentSessionId === sessionId) {
+                        currentSessionId = null;
+                        messages = [];
+                        document.getElementById('chatArea').innerHTML = '<div class="empty-state"><h3>开始对话吧</h3><p>输入您的问题，AI助手将为您解答</p></div>';
+                    }
+                    loadSessions();
+                }
+            } catch (err) { console.error('删除会话失败:', err); }
+        }
+
+        function filterSessions() {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            const list = document.getElementById('sessionList');
+            list.innerHTML = '';
+            
+            const filteredSessions = keyword 
+                ? allSessions.filter(s => (s.firstQuestion || '').toLowerCase().includes(keyword))
+                : allSessions;
+            
+            filteredSessions.forEach(session => {
+                const item = document.createElement('div');
+                item.className = 'session-item' + (session.id === currentSessionId ? ' active' : '');
+                const firstQuestion = session.firstQuestion || '新对话';
+                const msgCount = session.messageCount || 0;
+                const timeStr = formatTime(session.createdAt);
+                
+                // 高亮搜索关键词
+                let titleHtml = escapeHtml(firstQuestion.substring(0, 20));
+                if (firstQuestion.length > 20) titleHtml += '...';
+                if (keyword) {
+                    const regex = new RegExp('(' + keyword + ')', 'gi');
+                    titleHtml = titleHtml.replace(regex, '<mark style="background:#ff0;color:#000">$1</mark>');
+                }
+                
+                item.innerHTML = `
+                    <div class="title">
+                        <span>${titleHtml}</span>
+                        ${msgCount > 0 ? `<span class="session-count">${msgCount}</span>` : ''}
+                    </div>
+                    <div class="preview">${escapeHtml(firstQuestion)}</div>
+                    <div class="time">${timeStr}</div>
+                    <button class="delete-btn" onclick="event.stopPropagation(); deleteSession(${session.id})" title="删除">x</button>
+                `;
+                item.onclick = () => loadSession(session.id);
+                list.appendChild(item);
+            });
+        }
+
+        function renderMessages() {
+            const area = document.getElementById('chatArea');
+            area.innerHTML = '';
+            if (messages.length === 0) {
+                area.innerHTML = '<div class="empty-state"><h3>开始对话吧</h3><p>输入您的问题，AI助手将为您解答</p></div>';
+                return;
+            }
+            messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = 'message ' + (msg.role === 'user' ? 'user-message' : 'ai-message');
+                div.innerHTML = '<div class="message-content">' + escapeHtml(msg.content) + '</div>';
+                area.appendChild(div);
+            });
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const content = input.value.trim();
+            
+            if (!content) return;
+            if (isStreaming) return;
+
+            if (!currentSessionId) {
+                await createNewSession();
+            }
+
+            messages.push({ role: 'user', content: content });
+            renderMessages();
+            input.value = '';
+            input.style.height = 'auto';
+
+            isStreaming = true;
+            const sendBtn = document.getElementById('sendBtn');
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<div class="loading"><span class="typing-cursor"></span></div>';
+
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'message ai-message';
+            aiDiv.innerHTML = '<div class="message-content" id="streamingContent"><span class="typing-cursor"></span></div>';
+            document.getElementById('chatArea').appendChild(aiDiv);
+            document.getElementById('chatArea').scrollTop = document.getElementById('chatArea').scrollHeight;
+
+            try {
+                const response = await fetch('/ai-assistant/api/chat/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId: currentSessionId, message: content, modelType: currentModel })
+                });
+
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    buffer += chunk;
+                    
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    
+                    for (const line of lines) {
+                        const cleanLine = line.replace(/\r$/, '').trim();
+                        if (!cleanLine) continue;
+                        
+                        if (cleanLine.startsWith('event:')) continue;
+                        
+                        if (cleanLine.startsWith('data:')) {
+                            const data = cleanLine.substring(5).trim();
+                            if (!data) continue;
+                            
+                            try {
+                                const json = JSON.parse(data);
+                                if (json.content !== undefined && json.content !== null && json.content !== '') {
+                                    fullContent += json.content;
+                                    const el = document.getElementById('streamingContent');
+                                    if (el) {
+                                        el.innerHTML = escapeHtml(fullContent) + '<span class="typing-cursor"></span>';
+                                    }
+                                    document.getElementById('chatArea').scrollTop = document.getElementById('chatArea').scrollHeight;
+                                }
+                                if (json.isEnd === true) break;
+                            } catch (e) {}
+                        }
+                    }
+                }
+                
+                messages.push({ role: 'assistant', content: fullContent });
+                const el = document.getElementById('streamingContent');
+                if (el) {
+                    el.innerHTML = escapeHtml(fullContent);
+                }
+            } catch (err) {
+                const el = document.getElementById('streamingContent');
+                if (el) {
+                    el.innerHTML = '<span style="color:#ff4444">请求失败: ' + err.message + '</span>';
+                }
+            }
+
+            isStreaming = false;
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '发送';
+            loadSessions();
+        }
+
+        // ============ 文档管理功能 ============
+
+        let documents = [];
+
+        function toggleDocPanel() {
+            const panel = document.getElementById('docPanel');
+            const overlay = document.getElementById('docPanelOverlay');
+            const btn = document.getElementById('docToggleBtn');
+            panel.classList.toggle('open');
+            overlay.classList.toggle('show');
+            btn.classList.toggle('active');
+            if (panel.classList.contains('open')) {
+                loadDocuments();
+            }
+        }
+
+        function setupDragDrop() {
+            const dropZone = document.getElementById('dropZone');
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    uploadDocument(files[0]);
+                }
+            }, false);
+        }
+
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            if (file) {
+                uploadDocument(file);
+            }
+        }
+
+        async function uploadDocument(file) {
+            if (!file) return;
+            
+            const allowedTypes = ['pdf', 'docx', 'doc', 'txt'];
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!allowedTypes.includes(ext)) {
+                showToast('不支持的文件格式', 'error');
+                return;
+            }
+
+            const progress = document.getElementById('uploadProgress');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            
+            progress.classList.add('show');
+            progressFill.style.width = '30%';
+            progressText.textContent = '正在上传 ' + file.name + '...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/ai-assistant/api/document/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                progressFill.style.width = '100%';
+                
+                const data = await res.json();
+                if (data.code === 200) {
+                    showToast('上传成功，文档正在处理中', 'success');
+                    setTimeout(() => {
+                        progress.classList.remove('show');
+                        progressFill.style.width = '0%';
+                        loadDocuments();
+                    }, 1000);
+                } else {
+                    showToast('上传失败: ' + data.message, 'error');
+                    progress.classList.remove('show');
+                }
+            } catch (err) {
+                showToast('上传失败: ' + err.message, 'error');
+                progress.classList.remove('show');
+            }
+        }
+
+        async function loadDocuments() {
+            try {
+                const res = await fetch('/ai-assistant/api/document/list');
+                const data = await res.json();
+                documents = data.code === 200 ? data.data : [];
+                renderDocuments();
+            } catch (err) {
+                console.error('加载文档失败:', err);
+            }
+        }
+
+        function renderDocuments() {
+            const list = document.getElementById('docList');
+            if (documents.length === 0) {
+                list.innerHTML = '<div style="text-align: center; padding: 30px; color: #555; font-size: 13px;">暂无文档，上传文档开始构建知识库</div>';
+                return;
+            }
+
+            list.innerHTML = documents.map(doc => {
+                const statusMap = {
+                    0: { text: '处理中', class: 'processing' },
+                    1: { text: '已完成', class: 'success' },
+                    '-1': { text: '失败', class: 'error' }
+                };
+                const status = statusMap[doc.status] || statusMap[0];
+                const ext = (doc.fileType || '').toLowerCase();
+                const size = formatFileSize(doc.fileSize || 0);
+
+                return `
+                    <div class="doc-item">
+                        <div class="doc-item-header">
+                            <div class="doc-icon ${ext}">${ext.toUpperCase()}</div>
+                            <div class="doc-info">
+                                <div class="doc-name" title="${escapeHtml(doc.fileName)}">${escapeHtml(doc.fileName)}</div>
+                                <div class="doc-meta">
+                                    <span>${size}</span>
+                                    <span class="doc-status">
+                                        <span class="status-dot ${status.class}"></span>
+                                        ${status.text}
+                                    </span>
+                                    ${doc.chunkCount ? `<span>${doc.chunkCount} 个片段</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="doc-actions">
+                            ${doc.status === 1 ? `
+                                <button class="doc-action-btn view" onclick="openProcessModal(${doc.id}, '${escapeHtml(doc.fileName)}')">✨ 智能处理</button>
+                                <button class="doc-action-btn view" onclick="viewChunks(${doc.id}, '${escapeHtml(doc.fileName)}')">查看内容</button>
+                            ` : ''}
+                            ${doc.status === -1 ? `<button class="doc-action-btn retry" onclick="reprocessDocument(${doc.id})">重新处理</button>` : ''}
+                            <button class="doc-action-btn delete" onclick="deleteDocument(${doc.id})">删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function viewChunks(docId, docName) {
+            document.getElementById('modalDocName').textContent = docName;
+            const chunkList = document.getElementById('chunkList');
+            chunkList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">加载中...</div>';
+            document.getElementById('chunkModal').classList.add('show');
+
+            fetch('/ai-assistant/api/document/' + docId + '/chunks')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.code === 200 && data.data.length > 0) {
+                        chunkList.innerHTML = data.data.map((chunk, i) => 
+                            `<div class="chunk-item" data-index="#${i + 1}">${escapeHtml(chunk.content)}</div>`
+                        ).join('');
+                    } else {
+                        chunkList.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">暂无内容</div>';
+                    }
+                })
+                .catch(() => {
+                    chunkList.innerHTML = '<div style="text-align: center; padding: 20px; color: #e74c3c;">加载失败</div>';
+                });
+        }
+
+        function closeChunkModal() {
+            document.getElementById('chunkModal').classList.remove('show');
+        }
+
+        // ============ 文档智能处理功能 ============
+        let currentDocId = null;
+        let currentAction = null;
+
+        function openProcessModal(docId, docName) {
+            currentDocId = docId;
+            document.getElementById('processModalTitle').textContent = '✨ 文档智能处理 - ' + docName;
+            document.getElementById('processOptions').style.display = 'grid';
+            document.getElementById('questionInput').style.display = 'none';
+            document.getElementById('styleSelect').style.display = 'none';
+            document.getElementById('langSelect').style.display = 'none';
+            document.getElementById('expandInput').style.display = 'none';
+            document.getElementById('compareSelect').style.display = 'none';
+            document.getElementById('processResult').style.display = 'none';
+            document.getElementById('processBtn').style.display = 'block';
+            
+            // 更新对比文档选项
+            const compareSelect = document.getElementById('compareDocId');
+            if (compareSelect) {
+                compareSelect.innerHTML = documents
+                    .filter(d => d.id !== docId && d.status === 1)
+                    .map(d => `<option value="${d.id}">${escapeHtml(d.fileName)}</option>`).join('');
+            }
+            
+            document.getElementById('processModal').classList.add('show');
+        }
+
+        function closeProcessModal() {
+            document.getElementById('processModal').classList.remove('show');
+            currentDocId = null;
+            currentAction = null;
+        }
+
+        function selectProcessAction(action) {
+            currentAction = action;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.process-option-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.action === action) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            // 显示对应的输入框
+            document.getElementById('questionInput').style.display = action === 'question' ? 'block' : 'none';
+            document.getElementById('styleSelect').style.display = action === 'rewrite' ? 'block' : 'none';
+            document.getElementById('langSelect').style.display = action === 'translate' ? 'block' : 'none';
+            document.getElementById('expandInput').style.display = action === 'expand' ? 'block' : 'none';
+            document.getElementById('compareSelect').style.display = action === 'compare' ? 'block' : 'none';
+            document.getElementById('processResult').style.display = 'none';
+            
+            // 更新处理按钮文字
+            const btnText = {
+                summary: '生成摘要',
+                question: '提问',
+                rewrite: '改写润色',
+                translate: '翻译',
+                expand: '扩写',
+                keyinfo: '提取信息',
+                continue: '续写',
+                compare: '对比文档'
+            };
+            document.getElementById('processBtn').textContent = btnText[action] || '开始处理';
+        }
+
+        async function executeProcess() {
+            if (!currentDocId || !currentAction) {
+                showToast('请选择处理方式', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('processBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> 处理中...';
+            
+            try {
+                let url = `/ai-assistant/api/document/${currentDocId}/`;
+                let method = 'POST';
+                
+                switch (currentAction) {
+                    case 'summary':
+                        url += 'summary';
+                        method = 'POST';
+                        break;
+                    case 'question':
+                        const question = document.getElementById('questionText').value.trim();
+                        if (!question) {
+                            showToast('请输入问题', 'error');
+                            btn.disabled = false;
+                            btn.textContent = '提问';
+                            return;
+                        }
+                        url += 'question?question=' + encodeURIComponent(question);
+                        break;
+                    case 'rewrite':
+                        const style = document.getElementById('styleOption').value;
+                        url += 'rewrite?style=' + encodeURIComponent(style);
+                        break;
+                    case 'translate':
+                        const lang = document.getElementById('langOption').value;
+                        url += 'translate?targetLang=' + encodeURIComponent(lang);
+                        break;
+                    case 'expand':
+                        const focus = document.getElementById('expandText').value.trim() || '文档主题';
+                        url += 'expand?focusArea=' + encodeURIComponent(focus);
+                        break;
+                    case 'keyinfo':
+                        url += 'keyinfo';
+                        break;
+                    case 'continue':
+                        url += 'continue';
+                        break;
+                    case 'compare':
+                        const doc2Id = document.getElementById('compareDocId').value;
+                        if (!doc2Id) {
+                            showToast('请选择要对比的文档', 'error');
+                            btn.disabled = false;
+                            btn.textContent = '对比文档';
+                            return;
+                        }
+                        url = `/ai-assistant/api/document/compare?doc1Id=${currentDocId}&doc2Id=${doc2Id}`;
+                        break;
+                }
+                
+                const options = {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                
+                const res = await fetch(url, options);
+                const data = await res.json();
+                
+                if (data.code === 200) {
+                    document.getElementById('processResult').style.display = 'block';
+                    let content = data.data;
+                    if (typeof content === 'object') {
+                        content = JSON.stringify(content, null, 2);
+                    }
+                    document.getElementById('resultContent').textContent = content;
+                    showToast('处理完成', 'success');
+                } else {
+                    showToast(data.message || '处理失败', 'error');
+                }
+            } catch (err) {
+                showToast('处理失败: ' + err.message, 'error');
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '开始处理';
+        }
+
+        async function reprocessDocument(docId) {
+            try {
+                const res = await fetch('/ai-assistant/api/document/' + docId + '/reprocess', { method: 'POST' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    showToast('已开始重新处理', 'info');
+                    loadDocuments();
+                } else {
+                    showToast('操作失败: ' + data.message, 'error');
+                }
+            } catch (err) {
+                showToast('操作失败', 'error');
+            }
+        }
+
+        async function deleteDocument(docId) {
+            if (!confirm('确定要删除这个文档吗？')) return;
+            try {
+                const res = await fetch('/ai-assistant/api/document/' + docId, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.code === 200) {
+                    showToast('删除成功', 'success');
+                    loadDocuments();
+                } else {
+                    showToast('删除失败: ' + data.message, 'error');
+                }
+            } catch (err) {
+                showToast('删除失败', 'error');
+            }
+        }
+
+        async function searchKnowledge() {
+            const input = document.getElementById('kbSearchInput');
+            const keyword = input.value.trim();
+            if (!keyword) {
+                showToast('请输入搜索关键词', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('kbSearchBtn');
+            btn.disabled = true;
+            btn.textContent = '搜索中...';
+
+            try {
+                const res = await fetch('/ai-assistant/api/document/search?keyword=' + encodeURIComponent(keyword));
+                const data = await res.json();
+                const resultsDiv = document.getElementById('kbResults');
+                
+                if (data.code === 200 && data.data && data.data.length > 0) {
+                    resultsDiv.innerHTML = `
+                        <div style="font-size: 12px; color: #888; margin-bottom: 10px;">找到 ${data.data.length} 条相关知识</div>
+                        ${data.data.map(item => `
+                            <div class="kb-result-item">
+                                <div class="kb-result-source">📄 ${escapeHtml(item.fileName || '未知文档')}</div>
+                                <div class="kb-result-content">${escapeHtml(item.content)}</div>
+                                <button class="kb-use-btn" onclick="useKnowledge('${escapeHtml(item.content).replace(/'/g, "\\'")}')">使用此内容提问</button>
+                            </div>
+                        `).join('')}
+                    `;
+                    resultsDiv.classList.add('show');
+                } else {
+                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">未找到相关知识</div><div class="kb-results show" style="display:block; padding: 0 0 20px;">' + resultsDiv.innerHTML.split('kb-results show')[1] + '</div>';
+                    resultsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #888;">未找到相关知识</div>';
+                    resultsDiv.classList.add('show');
+                }
+            } catch (err) {
+                showToast('搜索失败', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = '🔍 搜索知识库';
+        }
+
+        function useKnowledge(content) {
+            toggleDocPanel();
+            document.getElementById('messageInput').value = content;
+            document.getElementById('messageInput').focus();
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 回车搜索知识库
+        document.getElementById('kbSearchInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                searchKnowledge();
+            }
+        });
+
+        loadSessions();
+        
+        // 文档管理相关初始化
+        setupDragDrop();
+        loadDocuments();
+    </script>
+</body>
+</html>

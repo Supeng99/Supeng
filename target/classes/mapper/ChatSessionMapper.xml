@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ai.assistant.mapper.ChatSessionMapper">
+
+    <select id="selectByUserId" resultType="com.ai.assistant.entity.ChatSession">
+        SELECT 
+            s.id, 
+            s.user_id, 
+            s.model_type, 
+            s.status, 
+            s.message_count, 
+            s.last_message,
+            s.created_at,
+            s.updated_at,
+            (
+                SELECT content FROM chat_message 
+                WHERE session_id = s.id AND role = 'user' 
+                ORDER BY created_at ASC LIMIT 1
+            ) AS title
+        FROM chat_session s
+        WHERE s.user_id = #{userId}
+        ORDER BY s.updated_at DESC
+    </select>
+
+    <select id="selectPageByUserId" resultType="com.ai.assistant.entity.ChatSession">
+        SELECT 
+            s.id, 
+            s.user_id, 
+            s.model_type, 
+            s.status, 
+            s.message_count, 
+            s.last_message,
+            s.created_at,
+            s.updated_at,
+            (
+                SELECT content FROM chat_message 
+                WHERE session_id = s.id AND role = 'user' 
+                ORDER BY created_at ASC LIMIT 1
+            ) AS title
+        FROM chat_session s
+        WHERE s.user_id = #{userId}
+        ORDER BY s.updated_at DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+</mapper>

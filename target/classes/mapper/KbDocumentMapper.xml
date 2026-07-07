@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ai.assistant.mapper.KbDocumentMapper">
+
+    <select id="selectAll" resultType="com.ai.assistant.entity.KbDocument">
+        SELECT id, file_name, file_path, file_size, file_type, chunk_count, status, error_message, created_at, updated_at
+        FROM kb_document
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByStatus" resultType="com.ai.assistant.entity.KbDocument">
+        SELECT id, file_name, file_path, file_size, file_type, chunk_count, status, error_message, created_at, updated_at
+        FROM kb_document
+        WHERE status = #{status}
+        ORDER BY created_at DESC
+    </select>
+
+</mapper>
