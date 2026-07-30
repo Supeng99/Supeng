@@ -10,7 +10,7 @@
 | ORM | MyBatis Plus 3.5.x |
 | 数据库 | MySQL 8.0 |
 | 缓存 | Redis |
-| AI模型 | DeepSeek / 豆包 / 通义千问 |
+| AI模型 | DeepSeek  / 通义千问 |
 | 流式输出 | SSE (Server-Sent Events) |
 | 文档处理 | Apache PDFBox + POI |
 
